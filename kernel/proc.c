@@ -310,6 +310,9 @@ fork(void)
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
+  //copy the trace state
+  np->tracestate = p->tracestate;
+
   pid = np->pid;
 
   release(&np->lock);
@@ -454,7 +457,6 @@ scheduler(void)
     // processes are waiting.
     intr_on();
 
-    int found = 0;
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
@@ -468,14 +470,8 @@ scheduler(void)
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
-        found = 1;
       }
       release(&p->lock);
-    }
-    if(found == 0) {
-      // nothing to run; stop running on this core until an interrupt.
-      intr_on();
-      asm volatile("wfi");
     }
   }
 }
@@ -692,4 +688,24 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+
+// Retunrn num of UNUSED process
+uint64
+get_nproc(void)
+{
+  uint64 count = 0;
+
+  struct proc * p;
+  
+  for(p=proc; p<&proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if (p->state != UNUSED ) {
+      count++;
+    }
+    release(&p->lock);
+  }
+
+  return count;
 }
